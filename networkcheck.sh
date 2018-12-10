@@ -22,21 +22,18 @@ usage() {
     echo '  -u            Upload mode. Calculate the upload data.' >&2
     echo '  -D            Detail mode. Detail output data.' >&2
     echo '  -h            Information about this script.' >&2
-    if [[ "${EXIT_STATUS}" = '0' ]]
-    then 
-        exit 0 
-    else
-        exit 1
-    fi
+    exit ${EXIT_STATUS}
 }
 
 # Make sure run as root or superuser priveleges.
 if [[ "${UID}" -ne 0 ]]
 then
    echo 'Please run with sudo or as root.' >&2
+   EXIT_STATUS='1'
    usage
-   exit 1
 fi
+
+EXIT_STATUS='0'
 
 while getopts i:p:t:f:o:duDh OPTION
 do
@@ -48,14 +45,14 @@ do
      d) DOWNLOAD_MODE='true' ;;
      u) UPLOAD_MODE='true' ;;
      D) DETAIL_MODE='true' ;;
-     h) EXIT_STATUS='0'
-        usage 2>&1 ;;
-     ?) usage ;;
+     h) usage 2>&1 ;;
+     ?) EXIT_STATUS='1'
+        usage ;;
     esac
 done
 
 # Information output.
-echo -n "Listening port ${PORT} for ${DURATION} seconds.." 
+echo "Listening port ${PORT} for ${DURATION} seconds.." 
 
 # Edit port for no filter.
 PORT="port ${PORT}"
@@ -108,16 +105,15 @@ ${TCPDUMP_COMMAND}  > "${OUTPUT_FILE}" 2> /dev/null
 # Timeout default exit status 124.
 if [[ "${?}" -ne 124 ]]
 then
+    echo "${0} is crashed. Make sure input values are correct."
     echo ''
-    echo "${0} crashed. Make sure input values are correct."
-    echo "Use ${0} -h with root privileges."
     rm -rf "${OUTPUT_FILE}"
-    exit 1
+    EXIT_STATUS='1'
+    usage
 else 
-    echo ' Done.'
+    echo 'Done.'
     echo ''
 fi
-
 
 # Calculating result.
 TOTAL_PACKET=$(cat "${OUTPUT_FILE}" | grep -v 'length 0' | wc -l | awk '{print $1}')
@@ -142,7 +138,7 @@ fi
 # If user doesn't need output then remove output file.
 if [[ "${DELETE_FILE}" = 'true' ]]
 then
-    rm -rf "{OUTPUT_FILE}"
+    rm -rf "${OUTPUT_FILE}"
 fi
 
-exit 0
+exit ${EXIT_STATUS}
